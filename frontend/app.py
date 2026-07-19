@@ -20,6 +20,20 @@ def load_characters() -> dict[str, dict[str, str]]:
     return characters
 
 
+def post_chat_message(payload: dict[str, object]) -> requests.Response:
+    endpoints = ["/api/chat", "/chat"]
+    last_response: requests.Response | None = None
+
+    for endpoint in endpoints:
+        response = requests.post(f"{BACKEND_URL}{endpoint}", json=payload, timeout=30)
+        if response.status_code != 404:
+            return response
+        last_response = response
+
+    assert last_response is not None
+    return last_response
+
+
 st.set_page_config(page_title="AI Roleplay", page_icon="🎭")
 st.title("🎭 AI Roleplay Starter")
 
@@ -32,8 +46,19 @@ selected = st.selectbox("Choose a character", options=sorted(characters.keys()))
 selected_card = characters[selected]
 st.caption(selected_card.get("description", ""))
 
+opening_message = selected_card.get("first_message", "")
+
 if "history" not in st.session_state:
     st.session_state.history = []
+
+if st.session_state.get("active_character") != selected:
+    st.session_state.active_character = selected
+    st.session_state.history = []
+    if opening_message:
+        st.session_state.history.append({"role": "assistant", "content": opening_message})
+
+if not st.session_state.history and opening_message:
+    st.session_state.history.append({"role": "assistant", "content": opening_message})
 
 for message in st.session_state.history:
     with st.chat_message(message["role"]):
@@ -46,14 +71,12 @@ if user_input:
         st.markdown(user_input)
 
     try:
-        response = requests.post(
-            f"{BACKEND_URL}/api/chat",
-            json={
+        response = post_chat_message(
+            {
                 "character_name": selected,
                 "message": user_input,
                 "history": st.session_state.history[:-1],
-            },
-            timeout=30,
+            }
         )
         response.raise_for_status()
         reply = response.json().get("reply", "No reply received.")
