@@ -6,7 +6,8 @@ from pathlib import Path
 import requests
 import streamlit as st
 
-BACKEND_URL = st.secrets.get("BACKEND_URL", "http://localhost:8000")
+import os
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 CHARACTERS_DIR = Path(__file__).resolve().parents[1] / "characters"
 
 
